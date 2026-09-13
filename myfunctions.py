@@ -1,7 +1,6 @@
 import os
 import streamlit as st
 import pyaudio
-import wave
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.prompts import PromptTemplate
@@ -12,6 +11,7 @@ from groq import Groq
 from langchain_community.callbacks.manager import get_openai_callback
 from langchain.chains import RetrievalQA
 from deepgram import (DeepgramClient, SpeakOptions)
+from audio_recorder import AudioRecorder
 
 class GroqLLMConfig(BaseModel):
     model_name: str = Field(..., description="The name of the Groq model to use.")
@@ -180,36 +180,17 @@ OUTPUT_FILE = "Audio/question.wav"  # Output file
 
 # Initialize PyAudio
 p = pyaudio.PyAudio()
+recorder = AudioRecorder(p, OUTPUT_FILE, FORMAT, CHANNELS, RATE, CHUNK)
 
 # Start recording function
 def start_recording():
-    st.session_state['recording'] = True
-    st.session_state['frames'] = []
+    if recorder.start():
+        st.session_state['recording'] = True
 
-    stream = p.open(format=FORMAT, channels=CHANNELS,
-                    rate=RATE, input=True,
-                    frames_per_buffer=CHUNK)
-
-    #with st.spinner("Recording audio..."):
-    while st.session_state['recording']:
-        data = stream.read(CHUNK)
-        st.session_state['frames'].append(data)
-
-    # Stop and close the stream
-    stream.stop_stream()
-    stream.close()
-    
 # Stop recording function
 def stop_recording():
+    recorder.stop()
     st.session_state['recording'] = False
-    
-    # Save the recorded data as a WAV file
-    wf = wave.open(OUTPUT_FILE, 'wb')
-    wf.setnchannels(CHANNELS)
-    wf.setsampwidth(p.get_sample_size(FORMAT))
-    wf.setframerate(RATE)
-    wf.writeframes(b''.join(st.session_state['frames']))
-    wf.close()
 
 def get_audio_query():
     if os.path.exists("Audio/question.wav"):

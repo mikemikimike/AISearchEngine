@@ -1,0 +1,50 @@
+name: Python CI
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check "pytest==8.3.3" "pydantic==2.9.2"
+
+      - name: Compile Python sources
+        run: python -m compileall -q .
+
+      - name: Run tests
+        shell: bash
+        run: |
+          shopt -s nullglob
+          test_files=(tests/test_*.py)
+          if ((${#test_files[@]} == 0)); then
+            echo "No pytest tests found; compilation is the available verification."
+            exit 0
+          fi
+          python -m pytest -q tests

@@ -5,18 +5,13 @@ import wave
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.prompts import PromptTemplate
-from pydantic import BaseModel, Field
 from langchain.llms.base import LLM
 from typing import Any, List, Optional, Dict
 from groq import Groq
 from langchain_community.callbacks.manager import get_openai_callback
 from langchain.chains import RetrievalQA
 from deepgram import (DeepgramClient, SpeakOptions)
-
-class GroqLLMConfig(BaseModel):
-    model_name: str = Field(..., description="The name of the Groq model to use.")
-    temperature: float = Field(0.0, description="The temperature to use for sampling.")
-    groq_api_key: str = Field(..., description="The API key for Groq.")
+from llm_config import GroqLLMConfig
 
 class GroqLLM(LLM):
     config: GroqLLMConfig
@@ -33,7 +28,7 @@ class GroqLLM(LLM):
             temperature=temperature,
             groq_api_key=groq_api_key
         )
-        self.client = Groq(api_key=self.config.groq_api_key)
+        self.client = Groq(api_key=self.config.groq_api_key.get_secret_value())
 
     @property
     def config(self) -> GroqLLMConfig:

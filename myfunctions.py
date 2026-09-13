@@ -12,6 +12,7 @@ from groq import Groq
 from langchain_community.callbacks.manager import get_openai_callback
 from langchain.chains import RetrievalQA
 from deepgram import (DeepgramClient, SpeakOptions)
+from query_utils import latest_user_query
 
 class GroqLLMConfig(BaseModel):
     model_name: str = Field(..., description="The name of the Groq model to use.")
@@ -88,26 +89,17 @@ def setup_qa(vectorstore):
     return qa
 
 def get_answer(vectorstore):
-    # Retrieve the current chat history
+    # Retrieve only the latest user question for semantic search. The conversation
+    # history is still available to the chat model through the surrounding UI.
     chat_history = st.session_state[st.session_state['current_chat']]
-
-    # Format the chat history as a string to pass to the model
-    history_str = ""
-    for message in chat_history:
-        if message["role"] == "user":
-            history_str += f"User: {message['content']}\n"
-        else:
-            history_str += f"Assistant: {message['content']}\n"
-
-    # Create the prompt by combining history with the current query
-    full_prompt = f"{history_str}Assistant:"
+    query = latest_user_query(chat_history)
 
     # Set up the QA chain
     qa = setup_qa(vectorstore)
     
-    # Fetch the result with the entire conversation context
+    # Fetch documents using the question rather than the formatted transcript
     with get_openai_callback() :
-        result = qa({"query": full_prompt})  # Using the history as part of the query
+        result = qa({"query": query})
 
     answer = result['result']
     source_documents = result['source_documents']
